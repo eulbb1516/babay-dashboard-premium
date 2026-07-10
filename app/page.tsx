@@ -5,7 +5,8 @@ import Chart from 'chart.js/auto';
 import { 
   Smartphone, Calendar, PlusCircle, TrendingUp, DollarSign, Receipt, 
   TrendingDown, Minus, Package, ShoppingBag, Activity, Award, 
-  ShieldCheck, Search, PackageOpen, Edit3, X, ArrowUpRight, Lock, LogOut
+  ShieldCheck, Search, PackageOpen, Edit3, X, ArrowUpRight, Lock, LogOut,
+  Eye, EyeOff
 } from 'lucide-react';
 
 const API_URL = "https://script.google.com/macros/s/AKfycbwn1IhBFA2YW9K8X6R7w-PvLrUlT4XBZ-SPxvDr1g7M_vld6wlCOLqATQdGwgdNy5rF/exec";
@@ -34,6 +35,17 @@ const formatDateIndo = (dateStr: string) => {
   return `${d.getDate()} - ${months[d.getMonth()]} - ${d.getFullYear()}`;
 };
 
+// Fungsi absolut untuk memastikan format tanggal selalu YYYY-MM-DD saat masuk form edit
+const formatDateForInputSafe = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const getItemAllocationMonth = (item: InventoryItem) => {
   let targetDateStr = item.status === "Terjual" ? (item.tglKeluar || item.tglMasuk) : item.tglMasuk;
   if (!targetDateStr) return null;
@@ -44,10 +56,11 @@ const getItemAllocationMonth = (item: InventoryItem) => {
 };
 
 export default function Dashboard() {
-  // --- AUTHENTICATION STATE ---
+  // --- AUTHENTICATION & PRIVACY STATE ---
   const [isAuth, setIsAuth] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', pin: '' });
   const [loginError, setLoginError] = useState('');
+  const [isDataHidden, setIsDataHidden] = useState(true); // Default true saat login
 
   // --- DASHBOARD STATE ---
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
@@ -70,6 +83,11 @@ export default function Dashboard() {
   const pieChartRef = useRef<HTMLCanvasElement>(null);
   const trendChartInstance = useRef<Chart | null>(null);
   const pieChartInstance = useRef<Chart | null>(null);
+
+  // Fungsi pengaman nominal
+  const renderRupiah = (num: number) => {
+    return isDataHidden ? 'Rp •••••••' : formatIDR(num);
+  };
 
   useEffect(() => {
     const authSession = sessionStorage.getItem('babayAuth');
@@ -94,6 +112,7 @@ export default function Dashboard() {
     sessionStorage.removeItem('babayAuth');
     setIsAuth(false);
     setInventoryData([]); 
+    setIsDataHidden(true); // Reset ke hidden saat logout
   };
 
   const fetchData = async () => {
@@ -228,7 +247,22 @@ export default function Dashboard() {
       }],
       options: { 
         responsive: true, maintainAspectRatio: false, 
-        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', titleColor: '#fff', bodyColor: '#e2e8f0', borderColor: '#334155', borderWidth: 1, callbacks: { label: function(context) { if (context.dataset.yAxisID === 'yPercentage') return context.dataset.label + ': ' + (context.parsed.y >= 0 ? '+' : '') + context.parsed.y + '%'; return context.dataset.label + ': ' + formatIDR(context.parsed.y as number); } } } },
+        plugins: { 
+          legend: { display: false }, 
+          tooltip: { 
+            backgroundColor: '#0f172a', titleColor: '#fff', bodyColor: '#e2e8f0', borderColor: '#334155', borderWidth: 1, 
+            callbacks: { 
+              label: function(context: any) { 
+                // Injeksi fallback || 0 untuk mencegah TS memprotes data yang berpotensi null
+                const val = (context.parsed.y as number) || 0;
+                if (context.dataset.yAxisID === 'yPercentage') {
+                  return context.dataset.label + ': ' + (val >= 0 ? '+' : '') + val + '%'; 
+                }
+                return context.dataset.label + ': ' + formatIDR(val); 
+              } 
+            } 
+          } 
+        },
         scales: {
           y: { type: 'linear', position: 'left', grid: { color: 'rgba(51, 65, 85, 0.15)' }, ticks: { color: '#94a3b8', callback: value => formatIDR(value as number).replace('Rp', '') }, title: { display: true, text: 'Nominal Rupiah', color: '#94a3b8', font: { size: 9, weight: 'bold' } } },
           yPercentage: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#34d399', font: { size: 10, weight: 'bold' }, callback: value => (value as number >= 0 ? '+' : '') + value + '%' }, title: { display: true, text: 'Pertumbuhan Laba MoM (%)', color: '#34d399', font: { size: 10, weight: 'bold' } } },
@@ -295,10 +329,12 @@ export default function Dashboard() {
   const openEdit = (id: number | string) => {
     const item = inventoryData.find(i => i.id === id);
     if (!item) return;
+    
+    // Konversi absolut tanggal yang ditarik dari API agar tidak hilang
     setFormData({
       id: item.id.toString(),
-      tglMasuk: item.tglMasuk ? item.tglMasuk.split('T')[0] : '',
-      tglKeluar: item.tglKeluar ? item.tglKeluar.split('T')[0] : '',
+      tglMasuk: formatDateForInputSafe(item.tglMasuk),
+      tglKeluar: formatDateForInputSafe(item.tglKeluar || ''),
       namaBarang: item.namaBarang || '',
       imei: item.imei || '',
       modal: item.modal.toString() || '',
@@ -335,7 +371,6 @@ export default function Dashboard() {
           .neon-border { border: 1px solid rgba(59, 130, 246, 0.2); }
         `}</style>
         
-        {/* Background Neon dibungkus dalam container overflow-hidden mutlak */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-900/10 rounded-full blur-[120px]"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-cyan-950/15 rounded-full blur-[120px]"></div>
@@ -375,8 +410,8 @@ export default function Dashboard() {
       <style>{`
         html, body { background-color: #030712 !important; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #030712; }
+        ::-webkit-scrollbar-thumb { background: #1e3a8a; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
         .glow-blue { box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.3); }
         .glow-cyan { box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.3); }
@@ -386,7 +421,6 @@ export default function Dashboard() {
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* Background Neon dibungkus dalam container fixed untuk menghentikan pelebaran halaman */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-900/10 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-cyan-950/15 rounded-full blur-[120px]"></div>
@@ -415,6 +449,12 @@ export default function Dashboard() {
               <option value="07" className="bg-slate-950">Juli 2026</option>
             </select>
           </div>
+          
+          {/* Tombol Toggle Privacy Mode */}
+          <button onClick={() => setIsDataHidden(!isDataHidden)} title={isDataHidden ? "Tampilkan Data" : "Sembunyikan Data"} className={`p-2.5 rounded-xl border font-bold transition duration-300 shadow-lg ${isDataHidden ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'}`}>
+            {isDataHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+
           <button onClick={() => { setFormData(defaultForm); setIsAddModalOpen(true); }} className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 glow-blue">
             <PlusCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Tambah Stok</span>
@@ -426,7 +466,6 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* pb-20 agar scroll mentok dengan lega di bawah */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 pb-20 space-y-10">
         {/* SCORECARDS */}
         <section className="flex flex-row flex-nowrap overflow-x-auto gap-4 xl:gap-6 items-stretch pb-4 scrollbar-none">
@@ -436,8 +475,8 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">Total Omset</span>
             </div>
             <div className="mt-4 flex-grow flex flex-col justify-end">
-              <h3 className="text-xl 2xl:text-2xl font-extrabold text-white tracking-tight break-all">{formatIDR(stats.omset)}</h3>
-              <p className="text-[11px] text-emerald-400 font-semibold mt-1 flex items-center gap-1"><ArrowUpRight className="w-3 h-3 flex-shrink-0"/><span className="truncate">{stats.omsetPct}% dari total</span></p>
+              <h3 className={`text-xl 2xl:text-2xl font-extrabold text-white tracking-tight break-all ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(stats.omset)}</h3>
+              <p className="text-[11px] text-emerald-400 font-semibold mt-1 flex items-center gap-1"><ArrowUpRight className="w-3 h-3 flex-shrink-0"/><span className={`truncate ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••••' : `${stats.omsetPct}% dari total`}</span></p>
             </div>
           </div>
           <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl p-5 neon-border transition-all duration-300 group flex flex-col justify-between flex-1 min-w-[230px]">
@@ -446,8 +485,8 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">Profit Bersih</span>
             </div>
             <div className="mt-4 flex-grow flex flex-col justify-end">
-              <h3 className="text-xl 2xl:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 tracking-tight break-all">{formatIDR(stats.profit)}</h3>
-              <p className="text-[11px] text-cyan-300 font-medium mt-1">Margin: {stats.profitMargin}%</p>
+              <h3 className={`text-xl 2xl:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 tracking-tight break-all ${isDataHidden ? 'font-mono text-cyan-500' : ''}`}>{renderRupiah(stats.profit)}</h3>
+              <p className={`text-[11px] text-cyan-300 font-medium mt-1 ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••••' : `Margin: ${stats.profitMargin}%`}</p>
             </div>
           </div>
           <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl p-5 neon-border transition-all duration-300 group flex flex-col justify-between flex-1 min-w-[230px]">
@@ -456,7 +495,7 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">Total Expense</span>
             </div>
             <div className="mt-4 flex-grow flex flex-col justify-end">
-              <h3 className="text-xl 2xl:text-2xl font-extrabold text-rose-400 tracking-tight break-all">{formatIDR(stats.expense)}</h3>
+              <h3 className={`text-xl 2xl:text-2xl font-extrabold text-rose-400 tracking-tight break-all ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(stats.expense)}</h3>
               <p className="text-[11px] text-slate-400 font-medium mt-1">Biaya Operasional</p>
             </div>
           </div>
@@ -466,7 +505,7 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">Growth Profit</span>
             </div>
             <div className="mt-4 flex-grow flex flex-col justify-end">
-              <h3 className={`text-xl 2xl:text-2xl font-extrabold mt-1 tracking-tight ${stats.growthColor}`}>{selectedMonth === "04" ? "Baseline" : `${stats.growthPct >= 0 ? '+' : ''}${stats.growthPct.toFixed(1)}%`}</h3>
+              <h3 className={`text-xl 2xl:text-2xl font-extrabold mt-1 tracking-tight ${stats.growthColor} ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••••••' : (selectedMonth === "04" ? "Baseline" : `${stats.growthPct >= 0 ? '+' : ''}${stats.growthPct.toFixed(1)}%`)}</h3>
               <p className="text-[11px] text-slate-400 font-medium mt-1">{stats.growthText}</p>
             </div>
           </div>
@@ -476,8 +515,8 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">Stok Tersedia</span>
             </div>
             <div className="mt-4 flex-grow flex flex-col justify-end">
-              <h3 className="text-xl 2xl:text-2xl font-extrabold text-white tracking-tight">{stats.sisaStokCount} <span className="text-xs font-medium text-slate-400">unit</span></h3>
-              <p className="text-[11px] text-amber-300 font-medium mt-1 break-words">Value: {formatIDR(stats.sisaStokValuation)}</p>
+              <h3 className={`text-xl 2xl:text-2xl font-extrabold text-white tracking-tight ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••' : stats.sisaStokCount} {!isDataHidden && <span className="text-xs font-medium text-slate-400">unit</span>}</h3>
+              <p className="text-[11px] text-amber-300 font-medium mt-1 break-words">Value: <span className={isDataHidden ? 'font-mono' : ''}>{renderRupiah(stats.sisaStokValuation)}</span></p>
             </div>
           </div>
           <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl p-5 neon-border transition-all duration-300 group flex flex-col justify-between flex-1 min-w-[230px]">
@@ -486,7 +525,7 @@ export default function Dashboard() {
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold whitespace-nowrap">Stok Terjual</span>
             </div>
             <div className="mt-4 flex-grow flex flex-col justify-end">
-              <h3 className="text-xl 2xl:text-2xl font-extrabold text-white tracking-tight">{stats.terjualCount} <span className="text-xs font-medium text-slate-400">unit</span></h3>
+              <h3 className={`text-xl 2xl:text-2xl font-extrabold text-white tracking-tight ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••' : stats.terjualCount} {!isDataHidden && <span className="text-xs font-medium text-slate-400">unit</span>}</h3>
               <p className="text-[11px] text-emerald-400 font-medium mt-1">Lunas &amp; Keluar</p>
             </div>
           </div>
@@ -497,19 +536,19 @@ export default function Dashboard() {
           <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-red-500/10 text-red-400 rounded-xl border border-red-500/10"><Activity className="w-5 h-5" /></div>
-              <div><span className="text-xs text-slate-400 block font-semibold">Uang Tertahan (Pinjaman/Modal)</span><span className="text-lg font-bold text-slate-200">{formatIDR(stats.pinjamanAktif)}</span></div>
+              <div><span className="text-xs text-slate-400 block font-semibold">Uang Tertahan (Pinjaman/Modal)</span><span className={`text-lg font-bold text-slate-200 ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(stats.pinjamanAktif)}</span></div>
             </div>
           </div>
           <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/10"><Award className="w-5 h-5" /></div>
-              <div><span className="text-xs text-slate-400 block font-semibold">Asset Terbeli dari Profit</span><span className="text-lg font-bold text-slate-200">{formatIDR(stats.assetDariProfit)}</span></div>
+              <div><span className="text-xs text-slate-400 block font-semibold">Asset Terbeli dari Profit</span><span className={`text-lg font-bold text-slate-200 ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(stats.assetDariProfit)}</span></div>
             </div>
           </div>
           <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/10"><ShieldCheck className="w-5 h-5" /></div>
-              <div><span className="text-xs text-slate-400 block font-semibold">Total Modal Berputar</span><span className="text-lg font-bold text-slate-200">{formatIDR(stats.totalModalBerputar)}</span></div>
+              <div><span className="text-xs text-slate-400 block font-semibold">Total Modal Berputar</span><span className={`text-lg font-bold text-slate-200 ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(stats.totalModalBerputar)}</span></div>
             </div>
           </div>
         </section>
@@ -527,14 +566,20 @@ export default function Dashboard() {
                 <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-cyan-400 rounded"></span><span className="text-slate-300 font-semibold">Profit</span></div>
               </div>
             </div>
-            <div className="h-80 w-full relative"><canvas ref={trendChartRef}></canvas></div>
+            {/* Filter CSS blur diaplikasikan jika isDataHidden true */}
+            <div className={`h-80 w-full relative transition-all duration-500 ${isDataHidden ? 'blur-md opacity-40 pointer-events-none grayscale-[50%]' : ''}`}>
+              <canvas ref={trendChartRef}></canvas>
+            </div>
           </div>
           <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl p-6 neon-border flex flex-col justify-between">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-white mb-1">Rasio Sumber Dana</h2>
               <p className="text-xs text-slate-400 mb-6">Persentase kontribusi pendanaan modal</p>
             </div>
-            <div className="h-60 w-full relative flex justify-center items-center"><canvas ref={pieChartRef}></canvas></div>
+            {/* Filter CSS blur diaplikasikan jika isDataHidden true */}
+            <div className={`h-60 w-full relative flex justify-center items-center transition-all duration-500 ${isDataHidden ? 'blur-md opacity-40 pointer-events-none grayscale-[50%]' : ''}`}>
+              <canvas ref={pieChartRef}></canvas>
+            </div>
             <div className="grid grid-cols-3 gap-2 mt-6 text-center text-xs">
               {Object.keys(stats.fundsSummary).filter(k => stats.fundsSummary[k] > 0).map((label) => {
                 const val = stats.fundsSummary[label];
@@ -551,8 +596,8 @@ export default function Dashboard() {
                       <span className={`w-2.5 h-2.5 ${colorIndicator} rounded-full flex-shrink-0`}></span>
                       <span className="text-slate-400 font-bold uppercase text-[9px] truncate max-w-[80px]">{label}</span>
                     </div>
-                    <p className="text-white font-extrabold text-sm">{pct}%</p>
-                    <p className="text-[9px] text-slate-500">{formatIDR(val).replace('Rp', '')}</p>
+                    <p className={`text-white font-extrabold text-sm ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••%' : `${pct}%`}</p>
+                    <p className={`text-[9px] text-slate-500 ${isDataHidden ? 'font-mono' : ''}`}>{isDataHidden ? '••••••' : formatIDR(val).replace('Rp', '')}</p>
                   </div>
                 );
               })}
@@ -622,10 +667,10 @@ export default function Dashboard() {
                       <td className="py-4 px-6 text-xs text-slate-400 font-mono whitespace-nowrap">{item.imei || '-'}</td>
                       <td className="py-4 px-6 whitespace-nowrap"><span className={`px-2 py-1 text-[10px] font-bold border rounded-lg ${badgeColor}`}>{item.status}</span></td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap">{item.sumberDana}</td>
-                      <td className="py-4 px-6 text-right font-medium text-slate-300 whitespace-nowrap">{formatIDR(item.modal)}</td>
-                      <td className="py-4 px-6 text-right font-medium text-slate-300 whitespace-nowrap">{(item.status === 'Terjual' || item.jual > 0) ? formatIDR(item.jual) : '-'}</td>
-                      <td className="py-4 px-6 text-right text-xs text-rose-400 whitespace-nowrap">{(item.status === 'Terjual' || item.expense > 0) ? formatIDR(item.expense) : '-'}</td>
-                      <td className="py-4 px-6 text-right font-bold text-emerald-400 whitespace-nowrap">{item.status === 'Terjual' ? formatIDR(item.profit) : '-'}</td>
+                      <td className={`py-4 px-6 text-right font-medium text-slate-300 whitespace-nowrap ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(item.modal)}</td>
+                      <td className={`py-4 px-6 text-right font-medium text-slate-300 whitespace-nowrap ${isDataHidden ? 'font-mono' : ''}`}>{(item.status === 'Terjual' || item.jual > 0) ? renderRupiah(item.jual) : '-'}</td>
+                      <td className={`py-4 px-6 text-right text-xs text-rose-400 whitespace-nowrap ${isDataHidden ? 'font-mono' : ''}`}>{(item.status === 'Terjual' || item.expense > 0) ? renderRupiah(item.expense) : '-'}</td>
+                      <td className={`py-4 px-6 text-right font-bold text-emerald-400 whitespace-nowrap ${isDataHidden ? 'font-mono' : ''}`}>{item.status === 'Terjual' ? renderRupiah(item.profit) : '-'}</td>
                       <td className="py-4 px-6 text-center whitespace-nowrap">
                         <button onClick={() => openEdit(item.id)} className="text-cyan-400 hover:text-cyan-300 p-1.5 bg-slate-800 hover:bg-cyan-500/10 border border-slate-700/60 hover:border-cyan-500/30 rounded-lg transition">
                           <Edit3 className="w-4 h-4" />
