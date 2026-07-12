@@ -658,13 +658,17 @@ export default function Dashboard() {
                   return (
                     <tr key={item.id} className="hover:bg-slate-900/30 transition-colors duration-150 group border-b border-slate-800/50">
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <span className="text-slate-200 font-bold group-hover:text-cyan-400 transition">{item.namaBarang}</span>
+                        <span className="text-slate-200 font-bold group-hover:text-cyan-400 transition">
+                          {isDataHidden ? '••••••••••••' : item.namaBarang}
+                        </span>
                         <div className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
                           <span>In: {formatDateIndo(item.tglMasuk)}</span>
                           {item.tglKeluar && <><span>•</span> <span>Out: {formatDateIndo(item.tglKeluar)}</span></>}
                         </div>
                       </td>
-                      <td className="py-4 px-6 text-xs text-slate-400 font-mono whitespace-nowrap">{item.imei || '-'}</td>
+                      <td className="py-4 px-6 text-xs text-slate-400 font-mono whitespace-nowrap">
+                        {isDataHidden ? '••••••••' : (item.imei || '-')}
+                      </td>
                       <td className="py-4 px-6 whitespace-nowrap"><span className={`px-2 py-1 text-[10px] font-bold border rounded-lg ${badgeColor}`}>{item.status}</span></td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap">{item.sumberDana}</td>
                       <td className={`py-4 px-6 text-right font-medium text-slate-300 whitespace-nowrap ${isDataHidden ? 'font-mono' : ''}`}>{renderRupiah(item.modal)}</td>
