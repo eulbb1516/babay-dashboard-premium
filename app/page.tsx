@@ -96,7 +96,7 @@ export default function Dashboard() {
 
   // --- DASHBOARD STATE ---
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // STATE BARU UNTUK LOADING
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [tableSelectedMonth, setTableSelectedMonth] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -141,7 +141,7 @@ export default function Dashboard() {
   };
 
   const fetchData = async () => {
-    setIsLoading(true); // SET LOADING TRUE
+    setIsLoading(true);
     showToast("Menyinkronkan data...");
     try {
       const response = await fetch(API_URL, { redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" } });
@@ -155,7 +155,7 @@ export default function Dashboard() {
     } catch (error) {
       showToast("Gagal mengambil data dari Google Sheet");
     } finally {
-      setIsLoading(false); // SET LOADING FALSE SETELAH SELESAI
+      setIsLoading(false);
     }
   };
 
@@ -455,6 +455,12 @@ export default function Dashboard() {
           
           <button onClick={() => setIsDataHidden(!isDataHidden)} title={isDataHidden ? "Tampilkan Data" : "Sembunyikan Data"} className={`p-2.5 rounded-xl border font-bold transition duration-300 shadow-lg ${isDataHidden ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'}`}>
             {isDataHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+
+          {/* TOMBOL LINK KE HALAMAN KEUANGAN */}
+          <button onClick={() => window.location.href = '/finance'} className="bg-slate-900 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 font-bold text-sm px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg">
+            <DollarSign className="w-4 h-4" />
+            <span className="hidden sm:inline">Keuangan</span>
           </button>
 
           <button onClick={() => { setFormData(defaultForm); setIsAddModalOpen(true); }} className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 glow-blue">
