@@ -136,28 +136,37 @@ export default function Dashboard() {
   const handleLogout = () => {
     sessionStorage.removeItem('babayAuth');
     setIsAuth(false);
-    setInventoryData([]); 
+    setInventoryData([]);
     setIsDataHidden(true);
   };
 
   const fetchData = async () => {
     setIsLoading(true);
-    showToast("Menyinkronkan data...");
     try {
       const response = await fetch(API_URL, { redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" } });
       const result = await response.json();
+      
+      // PERBAIKAN: Kita spesifik mengambil result.data.inventory agar tidak error forEach
       if (result.success) {
-        setInventoryData(result.data);
-        showToast("Data Tersinkronisasi!");
-      } else {
-        showToast("Error API: " + result.message);
+        setInventoryData(result.data.inventory || []); 
       }
     } catch (error) {
-      showToast("Gagal mengambil data dari Google Sheet");
+      console.error("Gagal mengambil data dari Google Sheet");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const authSession = sessionStorage.getItem('babayAuth');
+    if (authSession === 'true') {
+      setIsAuth(true);
+      fetchData();
+    } else {
+      setIsAuth(false);
+    }
+  }, []);
+
 
   const showToast = (message: string) => {
     setToast({ show: true, message });
@@ -430,51 +439,67 @@ export default function Dashboard() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-cyan-950/15 rounded-full blur-[120px]"></div>
       </div>
 
-      <nav className="relative z-40 sticky top-0 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
+      <nav className="relative z-40 sticky top-0 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+        {/* KIRI: Logo */}
+        <div className="flex items-center gap-3 z-10">
           <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30 glow-blue">
             <Smartphone className="w-6 h-6" />
           </div>
-          <div>
+          <div className="hidden sm:block">
             <h1 className="font-extrabold text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-200 to-cyan-400">BABAY GADGET</h1>
-            <p className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Overview Sales Performance</p>
+            <p className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Overview Sales</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2">
-            <Calendar className="w-4 h-4 text-cyan-400" />
-            <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent text-slate-200 focus:outline-none cursor-pointer text-sm font-semibold pr-2">
-              <option value="ALL" className="bg-slate-950">Semua Bulan (2026)</option>
-              <option value="04" className="bg-slate-950">April 2026</option>
-              <option value="05" className="bg-slate-950">Mei 2026</option>
-              <option value="06" className="bg-slate-950">Juni 2026</option>
-              <option value="07" className="bg-slate-950">Juli 2026</option>
-            </select>
-          </div>
-          
-          <button onClick={() => setIsDataHidden(!isDataHidden)} title={isDataHidden ? "Tampilkan Data" : "Sembunyikan Data"} className={`p-2.5 rounded-xl border font-bold transition duration-300 shadow-lg ${isDataHidden ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'}`}>
-            {isDataHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
+        {/* TENGAH: Filter Bulan (Absolute Centering untuk Desktop) */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 z-10 shadow-lg">
+          <Calendar className="w-4 h-4 text-cyan-400" />
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent text-slate-200 focus:outline-none cursor-pointer text-sm font-semibold pr-2">
+            <option value="ALL" className="bg-slate-950">Semua Bulan (2026)</option>
+            <option value="04" className="bg-slate-950">April 2026</option>
+            <option value="05" className="bg-slate-950">Mei 2026</option>
+            <option value="06" className="bg-slate-950">Juni 2026</option>
+            <option value="07" className="bg-slate-950">Juli 2026</option>
+          </select>
+        </div>
 
-          {/* TOMBOL LINK KE HALAMAN KEUANGAN */}
-          <button onClick={() => window.location.href = '/finance'} className="bg-slate-900 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 font-bold text-sm px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg">
+        {/* KANAN: Kumpulan Tombol Aksi */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
+          
+          {/* Dropdown versi HP (Muncul kalau buka di HP agar tidak nabrak) */}
+          <div className="lg:hidden flex items-center bg-slate-900 border border-slate-800 rounded-xl px-2 py-2">
+             <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent text-slate-200 focus:outline-none text-xs font-semibold">
+               <option value="ALL">Semua</option>
+               <option value="04">Apr 26</option>
+               <option value="05">Mei 26</option>
+               <option value="06">Jun 26</option>
+               <option value="07">Jul 26</option>
+             </select>
+          </div>
+
+          <button onClick={() => window.location.href = '/finance'} className="bg-slate-900 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 font-bold text-sm px-3 py-2.5 sm:px-4 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg">
             <DollarSign className="w-4 h-4" />
             <span className="hidden sm:inline">Keuangan</span>
           </button>
 
-          <button onClick={() => { setFormData(defaultForm); setIsAddModalOpen(true); }} className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 glow-blue">
+          <button onClick={() => { setFormData(defaultForm); setIsAddModalOpen(true); }} className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm px-3 py-2.5 sm:px-4 rounded-xl transition duration-300 flex items-center gap-2 glow-blue">
             <PlusCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Tambah Stok</span>
+            <span className="hidden md:inline">Tambah Stok</span>
           </button>
           
-          <button onClick={handleLogout} className="bg-slate-900 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:border-rose-500/50 font-bold text-sm px-3 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg">
+          {/* Tombol HIDE dipindah ke sebelah kiri LOGOUT */}
+          <button onClick={() => setIsDataHidden(!isDataHidden)} title={isDataHidden ? "Tampilkan Data" : "Sembunyikan Data"} className={`p-2.5 rounded-xl border font-bold transition duration-300 shadow-lg flex-shrink-0 ${isDataHidden ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'}`}>
+            {isDataHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+
+          <button onClick={handleLogout} className="bg-slate-900 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:border-rose-500/50 font-bold text-sm px-2.5 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg flex-shrink-0">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
       </nav>
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 pb-20 space-y-10">
+
         {/* SCORECARDS */}
         <section className="flex flex-row flex-nowrap overflow-x-auto gap-4 xl:gap-6 items-stretch pb-4 scrollbar-none">
           <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl p-5 neon-border transition-all duration-300 group flex flex-col justify-between flex-1 min-w-[230px]">
