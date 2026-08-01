@@ -477,12 +477,17 @@ export default function Dashboard() {
              </select>
           </div>
 
-          <button onClick={() => window.location.href = '/finance'} className="bg-slate-900 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 font-bold text-sm px-3 py-2.5 sm:px-4 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg">
+          <button onClick={() => window.location.href = '/finance'} className="bg-slate-900 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-sm font-bold">
             <DollarSign className="w-4 h-4" />
             <span className="hidden sm:inline">Keuangan</span>
           </button>
 
-          <button onClick={() => { setFormData(defaultForm); setIsAddModalOpen(true); }} className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm px-3 py-2.5 sm:px-4 rounded-xl transition duration-300 flex items-center gap-2 glow-blue">
+          <button onClick={() => window.location.href = '/caption'} className="bg-slate-900 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)] text-sm font-bold">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            <span className="hidden sm:inline">Buat Caption</span>
+          </button>
+
+          <button onClick={() => { setFormData(defaultForm); setIsAddModalOpen(true); }} className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold px-4 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg shadow-blue-500/25 text-sm">
             <PlusCircle className="w-4 h-4" />
             <span className="hidden md:inline">Tambah Stok</span>
           </button>
